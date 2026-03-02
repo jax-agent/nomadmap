@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NomadMap — Find Your Next Base</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--red:#ff2d2d;--bg:#080808;--surface:#0f0f0f;--border:#1a1a1a;--text:#e0e0e0;--muted:#555;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden;}
+
+/* Layout */
+#app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:320px 1fr;height:100vh;}
+#topbar{grid-column:1/-1;grid-row:1;display:flex;align-items:center;gap:12px;padding:0 16px;background:rgba(8,8,8,0.97);border-bottom:1px solid var(--border);z-index:1000;}
+#sidebar{grid-column:1;grid-row:2;overflow-y:auto;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+#map-wrap{grid-column:2;grid-row:2;position:relative;}
+#map{width:100%;height:100%;}
+
+/* Topbar */
+.logo{font-size:16px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap;color:#fff;}
+.logo span{color:var(--red);}
+#search{flex:1;max-width:340px;padding:7px 14px;background:#111;border:1px solid #222;border-radius:6px;color:#fff;font-size:13px;outline:none;}
+#search:focus{border-color:var(--red);}
+.view-btns{display:flex;gap:4px;margin-left:auto;}
+.view-btn{padding:6px 14px;border-radius:5px;font-size:12px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;border:1px solid #222;background:transparent;color:#555;cursor:pointer;transition:all 0.15s;}
+.view-btn.active{background:var(--red);color:#fff;border-color:var(--red);}
+.nomad-count{font-size:11px;color:#333;white-space:nowrap;}
+
+/* Filters */
+#filters{padding:14px 16px;border-bottom:1px solid var(--border);}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.filter-row:last-child{margin-bottom:0;}
+.filter-label{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#444;margin-bottom:6px;}
+select,input[type=range]{background:#111;border:1px solid #1e1e1e;color:#aaa;border-radius:4px;font-size:12px;padding:5px 8px;outline:none;cursor:pointer;}
+select:focus{border-color:var(--red);}
+.tag-filters{display:flex;gap:6px;flex-wrap:wrap;}
+.tag-btn{padding:3px 10px;border-radius:20px;font-size:11px;border:1px solid #1e1e1e;background:transparent;color:#555;cursor:pointer;transition:all 0.15s;}
+.tag-btn.active{border-color:var(--red);color:var(--red);}
+.sort-row{display:flex;align-items:center;gap:8px;}
+.sort-row label{font-size:11px;color:#444;}
+
+/* City list */
+#city-list{flex:1;overflow-y:auto;}
+.city-card{padding:14px 16px;border-bottom:1px solid #0d0d0d;cursor:pointer;transition:background 0.1s;display:flex;gap:12px;align-items:flex-start;}
+.city-card:hover{background:#111;}
+.city-card.active{background:#110808;border-left:2px solid var(--red);}
+.city-flag{font-size:20px;flex-shrink:0;margin-top:1px;}
+.city-info{flex:1;min-width:0;}
+.city-name{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.city-country{font-size:11px;color:#555;margin-bottom:6px;}
+.city-stats{display:flex;gap:10px;}
+.stat{display:flex;flex-direction:column;align-items:center;}
+.stat-val{font-size:12px;font-weight:700;}
+.stat-label{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:0.05em;}
+.city-score{flex-shrink:0;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:2px solid;}
+
+/* Score colors */
+.score-great{color:#2ecc71;border-color:#2ecc71;}
+.score-good{color:#f39c12;border-color:#f39c12;}
+.score-ok{color:#e74c3c;border-color:#e74c3c;}
+
+/* Tags */
+.city-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;}
+.city-tag{padding:2px 7px;border-radius:3px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;background:#111;color:#444;border:1px solid #1a1a1a;}
+
+/* Map popup */
+.map-popup{min-width:220px;}
+.mp-name{font-size:15px;font-weight:700;margin-bottom:2px;}
+.mp-country{font-size:12px;color:#888;margin-bottom:10px;}
+.mp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.mp-stat{background:#111;border-radius:6px;padding:8px;text-align:center;}
+.mp-stat-val{font-size:16px;font-weight:800;}
+.mp-stat-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;}
+.mp-tags{display:flex;gap:4px;flex-wrap:wrap;}
+.mp-tag{padding:3px 8px;border-radius:3px;background:#0d0d0d;border:1px solid #222;font-size:10px;color:#666;}
+.mp-btn{display:block;margin-top:10px;text-align:center;padding:8px;background:var(--red);color:#fff;border-radius:5px;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;border:none;width:100%;}
+.mp-btn:hover{background:#ff4444;}
+
+/* List view */
+#list-view{display:none;grid-column:2;grid-row:2;overflow-y:auto;padding:24px;}
+.list-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.list-card{background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:20px;cursor:pointer;transition:all 0.2s;}
+.list-card:hover{border-color:#333;transform:translateY(-2px);}
+.lc-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.lc-flag{font-size:28px;}
+.lc-score{margin-left:auto;font-size:22px;font-weight:800;}
+.lc-name{font-size:16px;font-weight:700;}
+.lc-country{font-size:12px;color:#555;}
+.lc-bars{display:flex;flex-direction:column;gap:6px;}
+.bar-row{display:flex;align-items:center;gap:8px;}
+.bar-label{font-size:10px;color:#555;width:60px;text-transform:uppercase;letter-spacing:0.04em;}
+.bar-track{flex:1;height:4px;background:#1a1a1a;border-radius:2px;}
+.bar-fill{height:4px;border-radius:2px;}
+.lc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:12px;}
+
+/* Leaflet overrides */
+.leaflet-popup-content-wrapper{background:#0d0d0d!important;color:#e0e0e0!important;border:1px solid #222!important;border-radius:10px!important;box-shadow:0 8px 32px rgba(0,0,0,0.6)!important;}
+.leaflet-popup-tip{background:#0d0d0d!important;}
+.leaflet-popup-content{margin:14px!important;}
+.leaflet-control-zoom{background:#111!important;border-color:#222!important;}
+.leaflet-control-zoom a{background:#111!important;color:#fff!important;border-color:#222!important;}
+
+/* Mobile */
+@media(max-width:768px){
+  #app{grid-template-columns:1fr;grid-template-rows:52px auto 1fr;}
+  #sidebar{grid-row:2;grid-column:1;max-height:40vh;}
+  #map-wrap{grid-row:3;grid-column:1;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="logo">Nomad<span>Map</span></div>
+    <input id="search" type="text" placeholder="🔍 Search cities...">
+    <div class="nomad-count" id="city-count">— cities</div>
+    <div class="view-btns">
+      <button class="view-btn active" id="btn-map" onclick="setView('map')">Map</button>
+      <button class="view-btn" id="btn-list" onclick="setView('list')">List</button>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div id="filters">
+      <div class="filter-label">Filters</div>
+      <div class="filter-row">
+        <select id="f-region" onchange="applyFilters()">
+          <option value="">All Regions</option>
+          <option>Southeast Asia</option><option>East Asia</option>
+          <option>Europe</option><option>Eastern Europe</option>
+          <option>Latin America</option><option>North America</option>
+          <option>Middle East</option><option>Africa</option>
+          <option>Oceania</option>
+        </select>
+        <select id="f-cost" onchange="applyFilters()">
+          <option value="">Any Budget</option>
+          <option value="1000">Under $1k/mo</option>
+          <option value="2000">Under $2k/mo</option>
+          <option value="3000">Under $3k/mo</option>
+        </select>
+        <select id="f-sort" onchange="applyFilters()">
+          <option value="score">Best Overall</option>
+          <option value="cost">Cheapest First</option>
+          <option value="internet">Fastest Internet</option>
+          <option value="safety">Safest</option>
+          <option value="weather">Best Weather</option>
+        </select>
+      </div>
+      <div class="tag-filters" id="tag-filters"></div>
+    </div>
+    <div id="city-list"></div>
+  </div>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+  </div>
+
+  <div id="list-view">
+    <div class="list-grid" id="list-grid"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════
+// CITY DATA
+// ═══════════════════════════
+const CITIES = [
+  // SE Asia
+  {id:"chiang-mai",name:"Chiang Mai",country:"Thailand",flag:"🇹🇭",lat:18.79,lng:98.98,region:"Southeast Asia",cost:800,internet:50,safety:8,weather:7,fun:9,tags:["cheap","cafe culture","mountains","slow life","great food"],visa:"visa on arrival"},
+  {id:"bali",name:"Bali (Canggu)",country:"Indonesia",flag:"🇮🇩",lat:-8.65,lng:115.13,region:"Southeast Asia",cost:1200,internet:40,safety:8,weather:8,fun:10,tags:["beach","surf","trendy","yoga","creative"],visa:"visa on arrival"},
+  {id:"bangkok",name:"Bangkok",country:"Thailand",flag:"🇹🇭",lat:13.75,lng:100.5,region:"Southeast Asia",cost:1100,internet:80,safety:7,weather:6,fun:10,tags:["cheap","food","nightlife","transport","chaotic"],visa:"visa on arrival"},
+  {id:"hcmc",name:"Ho Chi Minh City",country:"Vietnam",flag:"🇻🇳",lat:10.82,lng:106.63,region:"Southeast Asia",cost:900,internet:50,safety:7,weather:7,fun:9,tags:["cheap","food","motorbikes","vibrant","coffee"],visa:"e-visa"},
+  {id:"hanoi",name:"Hanoi",country:"Vietnam",flag:"🇻🇳",lat:21.02,lng:105.85,region:"Southeast Asia",cost:800,internet:45,safety:8,weather:6,fun:8,tags:["cheap","culture","coffee","food","history"],visa:"e-visa"},
+  {id:"penang",name:"Penang",country:"Malaysia",flag:"🇲🇾",lat:5.41,lng:100.33,region:"Southeast Asia",cost:1000,internet:60,safety:8,weather:7,fun:8,tags:["food","culture","cheap","chill","heritage"],visa:"visa free"},
+  {id:"kl",name:"Kuala Lumpur",country:"Malaysia",flag:"🇲🇾",lat:3.14,lng:101.69,region:"Southeast Asia",cost:1200,internet:70,safety:7,weather:7,fun:9,tags:["modern","cheap","food","transport","english"],visa:"visa free"},
+  {id:"singapore",name:"Singapore",country:"Singapore",flag:"🇸🇬",lat:1.35,lng:103.82,region:"Southeast Asia",cost:4000,internet:200,safety:10,weather:7,fun:9,tags:["expensive","fast wifi","safe","english","efficient"],visa:"visa free"},
+  {id:"taipei",name:"Taipei",country:"Taiwan",flag:"🇹🇼",lat:25.04,lng:121.56,region:"East Asia",cost:1800,internet:150,safety:9,weather:7,fun:9,tags:["fast wifi","food","safe","tech","metro"],visa:"visa free"},
+  {id:"tokyo",name:"Tokyo",country:"Japan",flag:"🇯🇵",lat:35.68,lng:139.69,region:"East Asia",cost:2800,internet:200,safety:10,weather:7,fun:10,tags:["safe","culture","food","efficient","expensive"],visa:"visa free"},
+  {id:"seoul",name:"Seoul",country:"South Korea",flag:"🇰🇷",lat:37.57,lng:126.98,region:"East Asia",cost:2200,internet:250,safety:9,weather:6,fun:9,tags:["fast wifi","food","nightlife","tech","modern"],visa:"visa free"},
+  {id:"chengdu",name:"Chengdu",country:"China",flag:"🇨🇳",lat:30.57,lng:104.06,region:"East Asia",cost:1200,internet:40,safety:8,weather:6,fun:8,tags:["cheap","food","culture","pandas","vibrant"],visa:"visa required"},
+
+  // Europe
+  {id:"lisbon",name:"Lisbon",country:"Portugal",flag:"🇵🇹",lat:38.72,lng:-9.14,region:"Europe",cost:2200,internet:80,safety:8,weather:9,fun:9,tags:["sunny","surf","tech hub","english","visa free"],visa:"visa free"},
+  {id:"porto",name:"Porto",country:"Portugal",flag:"🇵🇹",lat:41.16,lng:-8.63,region:"Europe",cost:1800,internet:70,safety:9,weather:8,fun:8,tags:["cheap(er)","chill","wine","architecture","friendly"],visa:"visa free"},
+  {id:"barcelona",name:"Barcelona",country:"Spain",flag:"🇪🇸",lat:41.39,lng:2.17,region:"Europe",cost:2600,internet:100,safety:6,weather:9,fun:10,tags:["beach","nightlife","food","culture","expensive"],visa:"visa free"},
+  {id:"madrid",name:"Madrid",country:"Spain",flag:"🇪🇸",lat:40.42,lng:-3.70,region:"Europe",cost:2400,internet:100,safety:7,weather:8,fun:9,tags:["culture","food","nightlife","art","sunny"],visa:"visa free"},
+  {id:"berlin",name:"Berlin",country:"Germany",flag:"🇩🇪",lat:52.52,lng:13.40,region:"Europe",cost:2800,internet:60,safety:7,weather:5,fun:10,tags:["nightlife","creative","tech","affordable(ish)","art"],visa:"visa free"},
+  {id:"amsterdam",name:"Amsterdam",country:"Netherlands",flag:"🇳🇱",lat:52.37,lng:4.90,region:"Europe",cost:3200,internet:100,safety:7,weather:4,fun:9,tags:["liberal","bikes","canals","tech","expensive"],visa:"visa free"},
+  {id:"tbilisi",name:"Tbilisi",country:"Georgia",flag:"🇬🇪",lat:41.69,lng:44.83,region:"Eastern Europe",cost:1000,internet:40,safety:8,weather:7,fun:9,tags:["cheap","visa free (1yr)","wine","culture","rising"],visa:"visa free"},
+  {id:"prague",name:"Prague",country:"Czech Republic",flag:"🇨🇿",lat:50.07,lng:14.43,region:"Eastern Europe",cost:2000,internet:70,safety:8,weather:5,fun:9,tags:["beautiful","beer","culture","central","affordable"],visa:"visa free"},
+  {id:"budapest",name:"Budapest",country:"Hungary",flag:"🇭🇺",lat:47.50,lng:19.04,region:"Eastern Europe",cost:1800,internet:70,safety:8,weather:5,fun:9,tags:["beautiful","cheap","baths","culture","central"],visa:"visa free"},
+  {id:"tallinn",name:"Tallinn",country:"Estonia",flag:"🇪🇪",lat:59.44,lng:24.75,region:"Eastern Europe",cost:2000,internet:100,safety:9,weather:3,fun:7,tags:["digital nomad visa","tech","medieval","fast wifi","safe"],visa:"digital nomad visa"},
+  {id:"split",name:"Split",country:"Croatia",flag:"🇭🇷",lat:43.51,lng:16.44,region:"Europe",cost:2200,internet:50,safety:9,weather:9,fun:8,tags:["beach","sailing","sun","adriatic","summer"],visa:"visa free"},
+  {id:"athens",name:"Athens",country:"Greece",flag:"🇬🇷",lat:37.98,lng:23.73,region:"Europe",cost:2000,internet:50,safety:7,weather:9,fun:8,tags:["history","sunny","food","affordable","culture"],visa:"visa free"},
+  {id:"istanbul",name:"Istanbul",country:"Turkey",flag:"🇹🇷",lat:41.01,lng:28.96,region:"Europe",cost:1400,internet:30,safety:6,weather:7,fun:9,tags:["cheap","culture","food","history","chaotic"],visa:"e-visa"},
+  {id:"sofia",name:"Sofia",country:"Bulgaria",flag:"🇧🇬",lat:42.70,lng:23.32,region:"Eastern Europe",cost:1400,internet:80,safety:7,weather:6,fun:7,tags:["cheap","fast wifi","underrated","mountains","calm"],visa:"visa free"},
+  {id:"warsaw",name:"Warsaw",country:"Poland",flag:"🇵🇱",lat:52.23,lng:21.01,region:"Eastern Europe",cost:1800,internet:80,safety:8,weather:4,fun:7,tags:["affordable","central","modern","growing","tech"],visa:"visa free"},
+  {id:"riga",name:"Riga",country:"Latvia",flag:"🇱🇻",lat:56.95,lng:24.11,region:"Eastern Europe",cost:1600,internet:90,safety:7,weather:3,fun:7,tags:["art nouveau","affordable","tech","underrated","eu"],visa:"visa free"},
+  {id:"london",name:"London",country:"UK",flag:"🇬🇧",lat:51.51,lng:-0.13,region:"Europe",cost:4500,internet:80,safety:6,weather:3,fun:10,tags:["english","finance","culture","expensive","rainy"],visa:"visa free"},
+  {id:"paris",name:"Paris",country:"France",flag:"🇫🇷",lat:48.86,lng:2.35,region:"Europe",cost:3800,internet:70,safety:6,weather:5,fun:10,tags:["culture","food","art","romance","expensive"],visa:"visa free"},
+
+  // Latin America
+  {id:"medellin",name:"Medellín",country:"Colombia",flag:"🇨🇴",lat:6.24,lng:-75.58,region:"Latin America",cost:1200,internet:50,safety:6,weather:10,fun:9,tags:["spring forever","cheap","nightlife","tech hub","growing"],visa:"visa free"},
+  {id:"bogota",name:"Bogotá",country:"Colombia",flag:"🇨🇴",lat:4.71,lng:-74.07,region:"Latin America",cost:1100,internet:50,safety:5,weather:6,fun:8,tags:["cheap","culture","coffee","altitude","growing"],visa:"visa free"},
+  {id:"mexico-city",name:"Mexico City",country:"Mexico",flag:"🇲🇽",lat:19.43,lng:-99.13,region:"Latin America",cost:1600,internet:40,safety:5,weather:8,fun:10,tags:["culture","food","art","nightlife","huge"],visa:"visa free"},
+  {id:"playa",name:"Playa del Carmen",country:"Mexico",flag:"🇲🇽",lat:20.63,lng:-87.08,region:"Latin America",cost:1800,internet:50,safety:6,weather:9,fun:9,tags:["beach","sun","expats","diving","caribbean"],visa:"visa free"},
+  {id:"oaxaca",name:"Oaxaca",country:"Mexico",flag:"🇲🇽",lat:17.07,lng:-96.72,region:"Latin America",cost:1200,internet:35,safety:7,weather:8,fun:8,tags:["culture","food","art","chill","colonial"],visa:"visa free"},
+  {id:"buenos-aires",name:"Buenos Aires",country:"Argentina",flag:"🇦🇷",lat:-34.60,lng:-58.38,region:"Latin America",cost:800,internet:30,safety:5,weather:7,fun:9,tags:["cheap","culture","food","nightlife","european feel"],visa:"visa free"},
+  {id:"lima",name:"Lima",country:"Peru",flag:"🇵🇪",lat:-12.05,lng:-77.04,region:"Latin America",cost:1200,internet:40,safety:5,weather:6,fun:8,tags:["food","culture","affordable","gateway","growing"],visa:"visa free"},
+  {id:"santiago",name:"Santiago",country:"Chile",flag:"🇨🇱",lat:-33.45,lng:-70.67,region:"Latin America",cost:2000,internet:60,safety:6,weather:7,fun:8,tags:["modern","safe(ish)","mountains","wine","growing"],visa:"visa free"},
+  {id:"sao-paulo",name:"São Paulo",country:"Brazil",flag:"🇧🇷",lat:-23.55,lng:-46.63,region:"Latin America",cost:1600,internet:50,safety:4,weather:7,fun:9,tags:["huge","business","nightlife","food","diverse"],visa:"visa free"},
+  {id:"montevideo",name:"Montevideo",country:"Uruguay",flag:"🇺🇾",lat:-34.90,lng:-56.19,region:"Latin America",cost:2000,internet:50,safety:8,weather:7,fun:7,tags:["safe","laid back","underrated","quality of life","stable"],visa:"visa free"},
+
+  // North America
+  {id:"miami",name:"Miami",country:"USA",flag:"🇺🇸",lat:25.77,lng:-80.19,region:"North America",cost:3500,internet:150,safety:6,weather:9,fun:10,tags:["beach","nightlife","tech","latin vibes","sun"],visa:"visa free"},
+  {id:"austin",name:"Austin",country:"USA",flag:"🇺🇸",lat:30.27,lng:-97.74,region:"North America",cost:3000,internet:200,safety:7,weather:8,fun:9,tags:["tech","music","food","fast wifi","growing"],visa:"visa free"},
+  {id:"nyc",name:"New York City",country:"USA",flag:"🇺🇸",lat:40.71,lng:-74.01,region:"North America",cost:5000,internet:200,safety:6,weather:5,fun:10,tags:["culture","finance","food","expensive","never sleeps"],visa:"visa free"},
+  {id:"la",name:"Los Angeles",country:"USA",flag:"🇺🇸",lat:34.05,lng:-118.24,region:"North America",cost:4200,internet:150,safety:5,weather:9,fun:10,tags:["sun","creative","beach","tech","sprawl"],visa:"visa free"},
+  {id:"denver",name:"Denver",country:"USA",flag:"🇺🇸",lat:39.74,lng:-104.98,region:"North America",cost:2800,internet:150,safety:6,weather:7,fun:8,tags:["mountains","outdoors","tech","beer","clean"],visa:"visa free"},
+  {id:"vancouver",name:"Vancouver",country:"Canada",flag:"🇨🇦",lat:49.28,lng:-123.12,region:"North America",cost:3200,internet:150,safety:8,weather:6,fun:9,tags:["beautiful","outdoors","tech","mountains","ocean"],visa:"visa free"},
+  {id:"toronto",name:"Toronto",country:"Canada",flag:"🇨🇦",lat:43.65,lng:-79.38,region:"North America",cost:3000,internet:150,safety:8,weather:4,fun:9,tags:["diverse","tech","expensive","multicultural","cold"],visa:"visa free"},
+
+  // Middle East & Africa
+  {id:"dubai",name:"Dubai",country:"UAE",flag:"🇦🇪",lat:25.20,lng:55.27,region:"Middle East",cost:4000,internet:100,safety:9,weather:7,fun:9,tags:["tax free","modern","luxury","hot","business hub"],visa:"visa on arrival"},
+  {id:"tel-aviv",name:"Tel Aviv",country:"Israel",flag:"🇮🇱",lat:32.08,lng:34.78,region:"Middle East",cost:3500,internet:100,safety:6,weather:9,fun:9,tags:["tech","beach","food","startup","vibrant"],visa:"visa free"},
+  {id:"cape-town",name:"Cape Town",country:"South Africa",flag:"🇿🇦",lat:-33.93,lng:18.42,region:"Africa",cost:1500,internet:40,safety:5,weather:9,fun:9,tags:["beautiful","mountains","beach","wine","cheap"],visa:"visa free"},
+  {id:"nairobi",name:"Nairobi",country:"Kenya",flag:"🇰🇪",lat:-1.29,lng:36.82,region:"Africa",cost:1200,internet:20,safety:4,weather:8,fun:7,tags:["tech hub","affordable","safari","startup","growing"],visa:"e-visa"},
+  {id:"marrakech",name:"Marrakech",country:"Morocco",flag:"🇲🇦",lat:31.63,lng:-7.99,region:"Africa",cost:1200,internet:30,safety:6,weather:8,fun:8,tags:["culture","cheap","medina","food","colorful"],visa:"visa free"},
+
+  // Oceania
+  {id:"melbourne",name:"Melbourne",country:"Australia",flag:"🇦🇺",lat:-37.81,lng:144.96,region:"Oceania",cost:3500,internet:80,safety:8,weather:7,fun:9,tags:["coffee","culture","sports","english","livable"],visa:"visa required"},
+  {id:"bali-ubud",name:"Ubud",country:"Indonesia",flag:"🇮🇩",lat:-8.51,lng:115.26,region:"Southeast Asia",cost:900,internet:30,safety:9,weather:8,fun:8,tags:["nature","yoga","spiritual","jungle","peaceful"],visa:"visa on arrival"},
+  {id:"phuket",name:"Phuket",country:"Thailand",flag:"🇹🇭",lat:7.89,lng:98.30,region:"Southeast Asia",cost:1200,internet:40,safety:7,weather:8,fun:9,tags:["beach","sun","diving","resort","party"],visa:"visa on arrival"},
+  {id:"da-nang",name:"Da Nang",country:"Vietnam",flag:"🇻🇳",lat:16.05,lng:108.20,region:"Southeast Asia",cost:800,internet:40,safety:9,weather:8,fun:8,tags:["beach","cheap","clean","laid back","growing"],visa:"e-visa"},
+  {id:"kotor",name:"Kotor",country:"Montenegro",flag:"🇲🇪",lat:42.42,lng:18.77,region:"Eastern Europe",cost:1600,internet:40,safety:9,weather:8,fun:7,tags:["beautiful","cheap","adriatic","hidden gem","quiet"],visa:"visa free"},
+  {id:"kyoto",name:"Kyoto",country:"Japan",flag:"🇯🇵",lat:35.01,lng:135.77,region:"East Asia",cost:2400,internet:150,safety:10,weather:7,fun:8,tags:["temples","culture","beautiful","slow life","traditional"],visa:"visa free"},
+];
+
+// Compute scores
+CITIES.forEach(c => {
+  const costScore = Math.max(0, 10 - (c.cost / 500));
+  c.score = Math.round((costScore * 0.25 + c.internet/25 * 0.2 + c.safety * 0.25 + c.weather * 0.15 + c.fun * 0.15));
+  c.score = Math.min(10, Math.max(1, c.score));
+});
+
+// Tags for filter buttons
+const ALL_TAGS = ["beach","cheap","fast wifi","safe","tech","food","nightlife","culture","mountains","digital nomad visa"];
+
+// State
+let filtered = [...CITIES];
+let activeCity = null;
+let activeTag = null;
+let currentView = 'map';
+let markers = {};
+
+// Map init
+const map = L.map('map', {zoomControl:true}).setView([20, 15], 2);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© OpenStreetMap contributors © CARTO',
+  subdomains:'abcd', maxZoom:19
+}).addTo(map);
+
+function scoreClass(s) {
+  if(s >= 8) return 'score-great';
+  if(s >= 6) return 'score-good';
+  return 'score-ok';
+}
+function scoreColor(s) {
+  if(s >= 8) return '#2ecc71';
+  if(s >= 6) return '#f39c12';
+  return '#e74c3c';
+}
+function barColor(val, max) {
+  const pct = val / max;
+  if(pct > 0.7) return '#2ecc71';
+  if(pct > 0.4) return '#f39c12';
+  return '#e74c3c';
+}
+
+function makeMarker(city) {
+  const color = scoreColor(city.score);
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="background:${color};width:10px;height:10px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);box-shadow:0 0 8px ${color}88;cursor:pointer;"></div>`,
+    iconSize:[10,10], iconAnchor:[5,5], popupAnchor:[0,-8]
+  });
+  const m = L.marker([city.lat, city.lng], {icon}).addTo(map);
+  m.bindPopup(buildPopup(city), {maxWidth:260, minWidth:240});
+  m.on('click', () => selectCity(city.id));
+  return m;
+}
+
+function buildPopup(c) {
+  const tags = c.tags.slice(0,4).map(t=>`<span class="mp-tag">${t}</span>`).join('');
+  return `<div class="map-popup">
+    <div class="mp-name">${c.flag} ${c.name}</div>
+    <div class="mp-country">${c.country} · ${c.region}</div>
+    <div class="mp-grid">
+      <div class="mp-stat"><div class="mp-stat-val" style="color:#f39c12">$${c.cost.toLocaleString()}</div><div class="mp-stat-label">/ month</div></div>
+      <div class="mp-stat"><div class="mp-stat-val" style="color:#3498db">${c.internet}</div><div class="mp-stat-label">Mbps avg</div></div>
+      <div class="mp-stat"><div class="mp-stat-val" style="color:#2ecc71">${c.safety}/10</div><div class="mp-stat-label">Safety</div></div>
+      <div class="mp-stat"><div class="mp-stat-val" style="color:${scoreColor(c.score)}">${c.score}/10</div><div class="mp-stat-label">Overall</div></div>
+    </div>
+    <div class="mp-tags">${tags}</div>
+    <div style="font-size:11px;color:#555;margin-top:8px;">Visa: ${c.visa}</div>
+  </div>`;
+}
+
+function renderMarkers() {
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  filtered.forEach(c => { markers[c.id] = makeMarker(c); });
+}
+
+function renderList() {
+  const el = document.getElementById('city-list');
+  el.innerHTML = filtered.map(c => `
+    <div class="city-card ${activeCity===c.id?'active':''}" onclick="selectCity('${c.id}')">
+      <div class="city-flag">${c.flag}</div>
+      <div class="city-info">
+        <div class="city-name">${c.name}</div>
+        <div class="city-country">${c.country}</div>
+        <div class="city-stats">
+          <div class="stat"><div class="stat-val" style="color:#f39c12">$${c.cost>=1000?(c.cost/1000).toFixed(1)+'k':c.cost}</div><div class="stat-label">/ mo</div></div>
+          <div class="stat"><div class="stat-val" style="color:#3498db">${c.internet}</div><div class="stat-label">Mbps</div></div>
+          <div class="stat"><div class="stat-val" style="color:#2ecc71">${c.safety}/10</div><div class="stat-label">Safety</div></div>
+          <div class="stat"><div class="stat-val" style="color:#e67e22">${c.weather}/10</div><div class="stat-label">Weather</div></div>
+        </div>
+        <div class="city-tags">${c.tags.slice(0,3).map(t=>`<span class="city-tag">${t}</span>`).join('')}</div>
+      </div>
+      <div class="city-score ${scoreClass(c.score)}">${c.score}</div>
+    </div>`).join('');
+}
+
+function renderListView() {
+  const el = document.getElementById('list-grid');
+  el.innerHTML = filtered.map(c => `
+    <div class="list-card" onclick="selectCity('${c.id}')">
+      <div class="lc-header">
+        <div class="lc-flag">${c.flag}</div>
+        <div><div class="lc-name">${c.name}</div><div class="lc-country">${c.country}</div></div>
+        <div class="lc-score" style="color:${scoreColor(c.score)}">${c.score}</div>
+      </div>
+      <div class="lc-bars">
+        <div class="bar-row"><div class="bar-label">Cost</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,100-(c.cost/50))}%;background:${barColor(5000-c.cost,5000)}"></div></div><div style="font-size:11px;color:#555;width:60px;text-align:right">$${c.cost}/mo</div></div>
+        <div class="bar-row"><div class="bar-label">Internet</div><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100,c.internet/2.5)}%;background:${barColor(c.internet,250)}"></div></div><div style="font-size:11px;color:#555;width:60px;text-align:right">${c.internet} Mbps</div></div>
+        <div class="bar-row"><div class="bar-label">Safety</div><div class="bar-track"><div class="bar-fill" style="width:${c.safety*10}%;background:${barColor(c.safety,10)}"></div></div><div style="font-size:11px;color:#555;width:60px;text-align:right">${c.safety}/10</div></div>
+        <div class="bar-row"><div class="bar-label">Weather</div><div class="bar-track"><div class="bar-fill" style="width:${c.weather*10}%;background:${barColor(c.weather,10)}"></div></div><div style="font-size:11px;color:#555;width:60px;text-align:right">${c.weather}/10</div></div>
+      </div>
+      <div class="lc-tags">${c.tags.slice(0,4).map(t=>`<span class="city-tag">${t}</span>`).join('')}</div>
+    </div>`).join('');
+}
+
+function selectCity(id) {
+  activeCity = id;
+  const city = CITIES.find(c=>c.id===id);
+  if(!city) return;
+  renderList();
+  if(currentView==='map') {
+    map.flyTo([city.lat, city.lng], 10, {duration:1});
+    setTimeout(()=>{ if(markers[id]) markers[id].openPopup(); }, 1000);
+  }
+  // Highlight sidebar item
+  document.querySelectorAll('.city-card').forEach(el=>{
+    el.classList.toggle('active', el.onclick?.toString().includes(id));
+  });
+}
+
+function applyFilters() {
+  const region = document.getElementById('f-region').value;
+  const maxCost = parseInt(document.getElementById('f-cost').value)||999999;
+  const sort = document.getElementById('f-sort').value;
+  const search = document.getElementById('search').value.toLowerCase();
+
+  filtered = CITIES.filter(c => {
+    if(region && c.region !== region) return false;
+    if(c.cost > maxCost) return false;
+    if(activeTag && !c.tags.some(t=>t.includes(activeTag))) return false;
+    if(search && !c.name.toLowerCase().includes(search) && !c.country.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  filtered.sort((a,b) => {
+    if(sort==='cost') return a.cost-b.cost;
+    if(sort==='internet') return b.internet-a.internet;
+    if(sort==='safety') return b.safety-a.safety;
+    if(sort==='weather') return b.weather-a.weather;
+    return b.score-a.score;
+  });
+
+  document.getElementById('city-count').textContent = `${filtered.length} cities`;
+  renderList();
+  renderMarkers();
+  if(currentView==='list') renderListView();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('btn-map').classList.toggle('active', v==='map');
+  document.getElementById('btn-list').classList.toggle('active', v==='list');
+  document.getElementById('map-wrap').style.display = v==='map'?'':'none';
+  document.getElementById('list-view').style.display = v==='list'?'block':'none';
+  if(v==='list') { document.getElementById('list-view').style.display='block'; renderListView(); }
+  if(v==='map') map.invalidateSize();
+}
+
+// Tag filter buttons
+const tagContainer = document.getElementById('tag-filters');
+ALL_TAGS.forEach(tag => {
+  const btn = document.createElement('button');
+  btn.className = 'tag-btn';
+  btn.textContent = tag;
+  btn.onclick = () => {
+    activeTag = activeTag===tag?null:tag;
+    document.querySelectorAll('.tag-btn').forEach(b=>b.classList.remove('active'));
+    if(activeTag) btn.classList.add('active');
+    applyFilters();
+  };
+  tagContainer.appendChild(btn);
+});
+
+// Search
+document.getElementById('search').addEventListener('input', applyFilters);
+
+// Init
+applyFilters();
+</script>
+</body>
+</html>

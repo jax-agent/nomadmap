@@ -613,7 +613,7 @@ function renderUserWidget() {
   if (sbUser) {
     var ini = (sbUser.email[0] || 'U').toUpperCase();
     w.innerHTML = '<div class="user-avatar" onclick="toggleUM()" title="' + sbUser.email + '">' + ini + '</div>';
-    document.getElementById('userMenuDD').innerHTML = '<a onclick="sidebarTab('mycities');toggleUM()">My Cities</a><a onclick="doSignOut()">Sign Out</a>';
+    document.getElementById('userMenuDD').innerHTML = '<a onclick="sidebarTab(&apos;mycities&apos;);toggleUM()">My Cities</a><a onclick="doSignOut()">Sign Out</a>';
   } else {
     w.innerHTML = '<button class="join-btn" onclick="showAuth()">Join Free</button>';
     document.getElementById('userMenuDD').innerHTML = '';

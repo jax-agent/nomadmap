@@ -613,7 +613,7 @@ function renderUserWidget() {
   if (sbUser) {
     var ini = (sbUser.email[0] || 'U').toUpperCase();
     w.innerHTML = '<div class="user-avatar" onclick="toggleUM()" title="' + sbUser.email + '">' + ini + '</div>';
-    document.getElementById('userMenuDD').innerHTML = '<a onclick="sidebarTab(&apos;mycities&apos;);toggleUM()">My Cities</a><a onclick="doSignOut()">Sign Out</a>';
+    document.getElementById('userMenuDD').innerHTML = '<a onclick="sidebarTab(\'mycities\');toggleUM()">My Cities</a><a onclick="doSignOut()">Sign Out</a>';
   } else {
     w.innerHTML = '<button class="join-btn" onclick="showAuth()">Join Free</button>';
     document.getElementById('userMenuDD').innerHTML = '';
@@ -677,7 +677,7 @@ async function renderMyCities() {
   if (!r.data || r.data.length === 0) { list.innerHTML = '<div style="color:#333;font-size:12px;padding:10px 0">None yet</div>'; return; }
   list.innerHTML = r.data.map(function(row) {
     var city = CITIES.find(function(c) { return c.id === row.city_id; }) || {};
-    return '<div class="mc-item" onclick="selectCity(&apos;' + row.city_id + '&apos;);sidebarTab(&apos;explore&apos;)"><div style="font-size:18px">' + (city.flag || '') + '</div><div><div class="mc-name">' + row.city_name + '</div><div class="mc-country">' + (city.country || '') + '</div></div><button class="mc-remove" onclick="event.stopPropagation();removeSaved(&apos;' + row.city_id + '&apos;)" title="Remove">x</button></div>';
+    return '<div class="mc-item" onclick="selectCity(\''+row.city_id+'\');sidebarTab(\'explore\')"><div style="font-size:18px">'+(city.flag||'')+'</div><div><div class="mc-name">'+row.city_name+'</div><div class="mc-country">'+(city.country||'')+'</div></div><button class="mc-remove" onclick="event.stopPropagation();removeSaved(\''+row.city_id+'\')">×</button></div>';
   }).join('');
 }
 
@@ -711,7 +711,7 @@ async function openDetail(cityId) {
   h += '<div class="dp-bars">' + bar('Cost', '$' + c.cost + '/mo', Math.max(0, 100 - c.cost / 50), '#f39c12') + bar('Internet', c.internet + ' Mbps', Math.min(100, c.internet / 2.5), '#3498db') + bar('Safety', c.safety + '/10', c.safety * 10, '#2ecc71') + bar('Weather', c.weather + '/10', c.weather * 10, '#e67e22') + bar('Fun', c.fun + '/10', c.fun * 10, '#9b59b6') + '</div>';
   h += '<div class="dp-tags">' + c.tags.map(function(t) { return '<span class="dp-tag">' + t + '</span>'; }).join('') + '</div>';
   h += '<div class="dp-visa">Visa: ' + c.visa + '</div>';
-  h += '<div class="save-btns"><button class="save-btn" id="sb-wishlist" onclick="toggleSave('' + c.id + '','' + c.name + '','wishlist')">&#9825; Wishlist</button><button class="save-btn" id="sb-visited" onclick="toggleSave('' + c.id + '','' + c.name + '','visited')">&#10003; Visited</button><button class="save-btn" id="sb-living" onclick="toggleSave('' + c.id + '','' + c.name + '','living')">&#127968; Living</button></div>';
+  h += '<div class="save-btns"><button class="save-btn" id="sb-wishlist" onclick="toggleSave(\''+c.id+'\',\''+c.name+'\',\'wishlist\')">&#9825; Wishlist</button><button class="save-btn" id="sb-visited" onclick="toggleSave(\''+c.id+'\',\''+c.name+'\',\'visited\')">&#10003; Visited</button><button class="save-btn" id="sb-living" onclick="toggleSave(\''+c.id+'\',\''+c.name+'\',\'living\')">&#127968; Living</button></div>';
 
   h += '<div class="section-title">Reviews ' + (reviews.length > 0 ? '(' + reviews.length + ') &middot; &#9733;' + avgR : '') + '</div>';
   if (reviews.length === 0) { h += '<div style="color:#333;font-size:12px;padding:6px 0">No reviews yet. Be the first!</div>'; }

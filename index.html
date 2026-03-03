@@ -677,7 +677,7 @@ async function renderMyCities() {
   if (!r.data || r.data.length === 0) { list.innerHTML = '<div style="color:#333;font-size:12px;padding:10px 0">None yet</div>'; return; }
   list.innerHTML = r.data.map(function(row) {
     var city = CITIES.find(function(c) { return c.id === row.city_id; }) || {};
-    return '<div class="mc-item" onclick="selectCity('' + row.city_id + '');sidebarTab('explore')"><div style="font-size:18px">' + (city.flag || '') + '</div><div><div class="mc-name">' + row.city_name + '</div><div class="mc-country">' + (city.country || '') + '</div></div><button class="mc-remove" onclick="event.stopPropagation();removeSaved('' + row.city_id + '')" title="Remove">x</button></div>';
+    return '<div class="mc-item" onclick="selectCity(&apos;' + row.city_id + '&apos;);sidebarTab(&apos;explore&apos;)"><div style="font-size:18px">' + (city.flag || '') + '</div><div><div class="mc-name">' + row.city_name + '</div><div class="mc-country">' + (city.country || '') + '</div></div><button class="mc-remove" onclick="event.stopPropagation();removeSaved(&apos;' + row.city_id + '&apos;)" title="Remove">x</button></div>';
   }).join('');
 }
 

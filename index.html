@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="2.3.0">
+<meta name="version" content="2.4.0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NomadMap — Find Your Next Base</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -299,6 +299,36 @@ select:focus{border-color:var(--red);}
 .cmp-table td.cmp-val.best{color:#2ecc71;font-weight:700;}
 .cmp-empty{text-align:center;color:#333;padding:60px 20px;font-size:14px;}
 .cmp-add-hint{color:#444;font-size:12px;margin-top:8px;}
+/* === NomadMap 2.4.0 Sprint 2 CSS === */
+.profile-panel{display:none;flex-direction:column;flex:1;overflow-y:auto;}
+.profile-panel.open{display:flex;}
+.profile-header{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border);}
+.profile-avatar-circle{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;flex-shrink:0;}
+.profile-form{padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.profile-form input,.profile-form textarea,.profile-form select{width:100%;padding:8px 10px;background:#111;border:1px solid #1e1e1e;border-radius:6px;color:#ccc;font-size:12px;font-family:inherit;transition:border-color .2s;outline:none;}
+.profile-form textarea{resize:vertical;min-height:60px;}
+.profile-form input:focus,.profile-form textarea:focus,.profile-form select:focus{border-color:var(--red);}
+.profile-field{display:flex;flex-direction:column;gap:4px;}
+.profile-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#444;}
+.profile-save-btn{padding:9px;background:var(--red);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;transition:background .2s;}
+.profile-save-btn:hover{background:#ff4444;}
+.profile-not-logged{padding:32px 16px;text-align:center;color:#555;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:14px;line-height:1.6;}
+.profile-not-logged button{padding:10px 22px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+.trip-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #0d0d0d;}
+.trip-city{font-size:13px;font-weight:600;color:#ccc;}
+.trip-meta{font-size:11px;color:#444;margin-top:2px;}
+.trip-delete{margin-left:auto;background:none;border:none;color:#333;cursor:pointer;font-size:16px;padding:2px 4px;transition:color .15s;flex-shrink:0;line-height:1;}
+.trip-delete:hover{color:var(--red);}
+.add-trip-form{background:#0d0d0d;border:1px solid #1a1a1a;border-radius:10px;padding:14px;margin-top:10px;}
+.add-trip-form select,.add-trip-form input,.add-trip-form textarea{width:100%;padding:8px 10px;background:#111;border:1px solid #1e1e1e;border-radius:6px;color:#ccc;font-size:12px;font-family:inherit;margin-top:6px;transition:border-color .2s;outline:none;}
+.add-trip-form textarea{resize:vertical;min-height:50px;}
+.add-trip-form select:focus,.add-trip-form input:focus,.add-trip-form textarea:focus{border-color:var(--red);}
+.nomad-badge{position:absolute;top:-4px;right:-4px;background:#e74c3c;color:#fff;border-radius:50%;width:15px;height:15px;font-size:8px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid #000;pointer-events:none;}
+.nomads-here{background:#111;border:1px solid #1a1a1a;border-radius:8px;padding:10px 14px;margin-bottom:14px;}
+.nomads-here-count{font-size:14px;font-weight:800;color:var(--red);margin-bottom:3px;}
+.nomads-here-names{color:#666;font-size:11px;line-height:1.5;}
+.nomads-here-empty{color:#444;font-size:11px;font-style:italic;}
+.nomad-count-chip{font-size:10px;color:#e74c3c;font-weight:600;margin-top:2px;}
 
 </style>
 </head>
@@ -359,6 +389,7 @@ select:focus{border-color:var(--red);}
       <div class="sidebar-tab on" id="stab-explore" data-tab="explore">Explore</div>
       <div class="sidebar-tab" id="stab-mycities" data-tab="mycities">My Cities</div>
       <div class="sidebar-tab" id="stab-leaderboard" data-tab="leaderboard">Top 10</div>
+      <div class="sidebar-tab" id="stab-profile" data-tab="profile">Profile</div>
     </div>
     <div id="explore-panel" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
       <div id="filters">
@@ -422,6 +453,9 @@ select:focus{border-color:var(--red);}
     <div class="lb-panel" id="lb-panel">
       <div class="lb-title">Most Saved Cities</div>
       <div id="lb-list"></div>
+    </div>
+    <div class="profile-panel" id="profile-panel">
+      <div id="profile-content"></div>
     </div>
   </div>
 
@@ -667,7 +701,7 @@ var CITIES=[
 CITIES.forEach(function(c){var cs=Math.max(0,10-(c.cost/500));c.score=Math.round(cs*0.25+(c.internet/25)*0.2+c.safety*0.25+c.weather*0.15+c.fun*0.15);c.score=Math.min(10,Math.max(1,c.score));});
 
 var ALL_TAGS=["beach","cheap","fast wifi","safe","tech","food","nightlife","culture","mountains","digital nomad visa","nature","english"];
-var filtered=CITIES.slice(),activeCity=null,activeTag=null,currentView="map",markers={},reviewCounts={};
+var filtered=CITIES.slice(),activeCity=null,activeTag=null,currentView="map",markers={},reviewCounts={},nomadsByCity={};
 
 // Map
 var map=L.map("map",{zoomControl:true}).setView([20,15],2);
@@ -679,15 +713,17 @@ function scoreColor(s){return s>=8?"#2ecc71":s>=6?"#f39c12":"#e74c3c";}
 function barColor(v,m){var p=v/m;return p>0.7?"#2ecc71":p>0.4?"#f39c12":"#e74c3c";}
 function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML;}
 function showToast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(function(){t.classList.remove("show");},2500);}
+function showNudge(msg,btnText,cb){var t=document.getElementById("toast");t.innerHTML=esc(msg)+' <button style="background:none;border:none;color:var(--red);cursor:pointer;font-weight:700;font-size:12px;margin-left:6px;text-decoration:underline;" id="nudgeBtn">'+esc(btnText)+'</button>';t.classList.add("show");var nb=document.getElementById("nudgeBtn");if(nb)nb.addEventListener("click",function(){t.classList.remove("show");cb();});setTimeout(function(){t.classList.remove("show");},7000);}
 
 // Markers with review count scaling
 function markerSize(id){var c=reviewCounts[id]||0;return 10+Math.min(c*2,16);}
-function makeMarker(city){var color=scoreColor(city.score),size=markerSize(city.id);var icon=L.divIcon({className:"",html:'<div style="background:'+color+";width:"+size+"px;height:"+size+"px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);box-shadow:0 0 10px "+color+'66;cursor:pointer;transition:transform .15s;" onmouseenter="this.style.transform=\'scale(1.3)\'" onmouseleave="this.style.transform=\'scale(1)\'"></div>',iconSize:[size,size],iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2]});var m=L.marker([city.lat,city.lng],{icon:icon}).addTo(map);m.bindPopup(buildPopup(city),{maxWidth:280,minWidth:240});m.on("click",function(){selectCity(city.id);});return m;}
+function makeMarker(city){var color=scoreColor(city.score),size=markerSize(city.id);var nc=(nomadsByCity[city.id]||{}).count||0;var badge=nc>0?'<div class="nomad-badge">'+nc+'</div>':'';
+var outer=size+8;var icon=L.divIcon({className:"",html:'<div style="position:relative;width:'+outer+'px;height:'+outer+'px;display:flex;align-items:center;justify-content:center;"><div style="background:'+color+';width:'+size+'px;height:'+size+'px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);box-shadow:0 0 10px '+color+'66;cursor:pointer;transition:transform .15s;" onmouseenter="this.style.transform=\'scale(1.3)\'" onmouseleave="this.style.transform=\'scale(1)\'">&nbsp;</div>'+badge+'</div>',iconSize:[outer,outer],iconAnchor:[outer/2,outer/2],popupAnchor:[0,-outer/2]});var m=L.marker([city.lat,city.lng],{icon:icon}).addTo(map);m.bindPopup(buildPopup(city),{maxWidth:280,minWidth:240});m.on("click",function(){selectCity(city.id);});return m;}
 function buildPopup(c){var tags=c.tags.slice(0,4).map(function(t){return'<span class="mp-tag">'+esc(t)+"</span>";}).join(""),rc=reviewCounts[c.id]||0;return'<div class="map-popup"><div class="mp-name">'+c.flag+" "+esc(c.name)+'</div><div class="mp-country">'+esc(c.country)+" \u00b7 "+esc(c.region)+(rc?" \u00b7 "+rc+" reviews":"")+'</div><div class="mp-grid"><div class="mp-stat"><div class="mp-stat-val" style="color:#f39c12">$'+c.cost.toLocaleString()+'</div><div class="mp-stat-label">/ month</div></div><div class="mp-stat"><div class="mp-stat-val" style="color:#3498db">'+c.internet+'</div><div class="mp-stat-label">Mbps avg</div></div><div class="mp-stat"><div class="mp-stat-val" style="color:#2ecc71">'+c.safety+'/10</div><div class="mp-stat-label">Safety</div></div><div class="mp-stat"><div class="mp-stat-val" style="color:'+scoreColor(c.score)+'">'+c.score+'/10</div><div class="mp-stat-label">Overall</div></div></div><div class="mp-tags">'+tags+'</div><div style="font-size:11px;color:#555;margin-top:8px;">Visa: '+esc(c.visa)+'</div><button class="mp-btn" data-city="'+c.id+'">View Details</button></div>';}
 function renderMarkers(){Object.values(markers).forEach(function(m){map.removeLayer(m);});markers={};filtered.forEach(function(c){markers[c.id]=makeMarker(c);});}
 
 // Sidebar city list
-function renderList(){var el=document.getElementById("city-list");el.innerHTML=filtered.map(function(c){var cs=c.cost>=1000?(c.cost/1000).toFixed(1)+"k":c.cost;return'<div class="city-card'+(activeCity===c.id?" active":"")+'" data-city="'+c.id+'"><div class="city-flag">'+c.flag+'</div><div class="city-info"><div class="city-name">'+esc(c.name)+'</div><div class="city-country">'+esc(c.country)+'</div><div class="city-stats"><div class="stat"><div class="stat-val" style="color:#f39c12">$'+cs+'</div><div class="stat-label">/ mo</div></div><div class="stat"><div class="stat-val" style="color:#3498db">'+c.internet+'</div><div class="stat-label">Mbps</div></div><div class="stat"><div class="stat-val" style="color:#2ecc71">'+c.safety+'/10</div><div class="stat-label">Safety</div></div><div class="stat"><div class="stat-val" style="color:#e67e22">'+c.weather+'/10</div><div class="stat-label">Weather</div></div></div><div class="city-tags">'+c.tags.slice(0,3).map(function(t){return'<span class="city-tag">'+esc(t)+"</span>";}).join("")+'</div></div><div class="city-score '+scoreClass(c.score)+'">'+c.score+"</div></div>";}).join("");}
+function renderList(){var el=document.getElementById("city-list");el.innerHTML=filtered.map(function(c){var cs=c.cost>=1000?(c.cost/1000).toFixed(1)+"k":c.cost;return'<div class="city-card'+(activeCity===c.id?" active":"")+'" data-city="'+c.id+'"><div class="city-flag">'+c.flag+'</div><div class="city-info"><div class="city-name">'+esc(c.name)+'</div><div class="city-country">'+esc(c.country)+'</div>'+(nomadsByCity[c.id]&&nomadsByCity[c.id].count>0?'<div class="nomad-count-chip">&#128100; '+nomadsByCity[c.id].count+' here</div>':'')+'<div class="city-stats"><div class="stat"><div class="stat-val" style="color:#f39c12">$'+cs+'</div><div class="stat-label">/ mo</div></div><div class="stat"><div class="stat-val" style="color:#3498db">'+c.internet+'</div><div class="stat-label">Mbps</div></div><div class="stat"><div class="stat-val" style="color:#2ecc71">'+c.safety+'/10</div><div class="stat-label">Safety</div></div><div class="stat"><div class="stat-val" style="color:#e67e22">'+c.weather+'/10</div><div class="stat-label">Weather</div></div></div><div class="city-tags">'+c.tags.slice(0,3).map(function(t){return'<span class="city-tag">'+esc(t)+"</span>";}).join("")+'</div></div><div class="city-score '+scoreClass(c.score)+'">'+c.score+"</div></div>";}).join("");}
 document.getElementById("city-list").addEventListener("click",function(e){var card=e.target.closest(".city-card");if(card)selectCity(card.dataset.city);});
 
 // List view
@@ -720,8 +756,8 @@ var SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 var sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 var sbUser=null,detailCity=null,mcTabState="wishlist",savedCities={},reviewStars=0;
 
-sb.auth.getSession().then(function(r){if(r.data.session){sbUser=r.data.session.user;onAuthChange();}loadSaved();loadReviewCounts();loadLeaderboard();});
-sb.auth.onAuthStateChange(function(_e,session){sbUser=session?session.user:null;onAuthChange();loadSaved();});
+sb.auth.getSession().then(function(r){if(r.data.session){sbUser=r.data.session.user;onAuthChange();}loadSaved();loadReviewCounts();loadLeaderboard();loadNomadProfiles();});
+sb.auth.onAuthStateChange(function(_e,session){sbUser=session?session.user:null;onAuthChange();loadSaved();loadNomadProfiles();});
 
 // Auth UI
 var authMode="signup";
@@ -732,7 +768,7 @@ document.querySelector(".auth-tabs").addEventListener("click",function(e){if(e.t
 document.getElementById("authSubmitBtn").addEventListener("click",authSubmit);
 document.getElementById("authPassword").addEventListener("keyup",function(e){if(e.key==="Enter")authSubmit();});
 
-async function authSubmit(){var email=document.getElementById("authEmail").value.trim(),pw=document.getElementById("authPassword").value,msg=document.getElementById("authMsg");if(!email||!pw){msg.textContent="Please fill all fields";msg.className="auth-msg";return;}if(pw.length<6){msg.textContent="Password must be at least 6 characters";msg.className="auth-msg";return;}msg.textContent="Loading...";msg.className="auth-msg";try{var res;if(authMode==="signup"){res=await sb.auth.signUp({email:email,password:pw});if(res.error)throw res.error;msg.className="auth-msg ok";msg.textContent="Account created! You can now save cities.";setTimeout(hideAuth,1500);}else{res=await sb.auth.signInWithPassword({email:email,password:pw});if(res.error)throw res.error;hideAuth();showToast("Welcome back!");}}catch(e){msg.className="auth-msg";msg.textContent=e.message;}}
+async function authSubmit(){var email=document.getElementById("authEmail").value.trim(),pw=document.getElementById("authPassword").value,msg=document.getElementById("authMsg");if(!email||!pw){msg.textContent="Please fill all fields";msg.className="auth-msg";return;}if(pw.length<6){msg.textContent="Password must be at least 6 characters";msg.className="auth-msg";return;}msg.textContent="Loading...";msg.className="auth-msg";try{var res;if(authMode==="signup"){res=await sb.auth.signUp({email:email,password:pw});if(res.error)throw res.error;msg.className="auth-msg ok";msg.textContent="Account created! You can now save cities.";setTimeout(hideAuth,1500);setTimeout(async function(){if(sbUser){var pc=await sb.from("nomad_profiles").select("id").eq("user_id",sbUser.id);if(!pc.data||!pc.data.length)showNudge("Welcome! Set up your nomad profile","Go to Profile",function(){sidebarTab("profile");});}},2500);}else{res=await sb.auth.signInWithPassword({email:email,password:pw});if(res.error)throw res.error;hideAuth();showToast("Welcome back!");setTimeout(async function(){if(sbUser){var pc=await sb.from("nomad_profiles").select("id").eq("user_id",sbUser.id);if(!pc.data||!pc.data.length)showNudge("Complete your nomad profile","Go to Profile",function(){sidebarTab("profile");});}},800);}}catch(e){msg.className="auth-msg";msg.textContent=e.message;}}
 
 // User widget
 function onAuthChange(){renderUserWidget();if(detailCity)refreshSaveBtns(detailCity.id);}
@@ -743,7 +779,7 @@ document.addEventListener("click",function(e){if(!e.target.closest("#userWidget"
 async function doSignOut(){await sb.auth.signOut();showToast("Signed out");}
 
 // Sidebar tabs
-function sidebarTab(tab){document.getElementById("stab-explore").classList.toggle("on",tab==="explore");document.getElementById("stab-mycities").classList.toggle("on",tab==="mycities");document.getElementById("stab-leaderboard").classList.toggle("on",tab==="leaderboard");document.getElementById("explore-panel").style.display=tab==="explore"?"flex":"none";document.getElementById("mc-panel").style.display=tab==="mycities"?"flex":"none";document.getElementById("lb-panel").style.display=tab==="leaderboard"?"flex":"none";if(tab==="mycities"){if(!sbUser){showAuth();sidebarTab("explore");return;}renderMyCities();}if(tab==="leaderboard")loadLeaderboard();}
+function sidebarTab(tab){document.getElementById("stab-explore").classList.toggle("on",tab==="explore");document.getElementById("stab-mycities").classList.toggle("on",tab==="mycities");document.getElementById("stab-leaderboard").classList.toggle("on",tab==="leaderboard");document.getElementById("stab-profile").classList.toggle("on",tab==="profile");document.getElementById("explore-panel").style.display=tab==="explore"?"flex":"none";document.getElementById("mc-panel").style.display=tab==="mycities"?"flex":"none";document.getElementById("lb-panel").style.display=tab==="leaderboard"?"flex":"none";document.getElementById("profile-panel").style.display=tab==="profile"?"flex":"none";if(tab==="mycities"){if(!sbUser){showAuth();sidebarTab("explore");return;}renderMyCities();}if(tab==="leaderboard")loadLeaderboard();if(tab==="profile")openProfilePanel();}
 document.querySelector(".sidebar-tabs").addEventListener("click",function(e){var tab=e.target.closest(".sidebar-tab");if(tab)sidebarTab(tab.dataset.tab);});
 
 // My Cities
@@ -777,11 +813,17 @@ var hero=document.getElementById("cm-hero"),body=document.getElementById("cm-bod
 hero.style.background=heroGrad(c.score);
 hero.innerHTML='<div class="cm-hero-flag">'+c.flag+'</div><div class="cm-hero-name">'+esc(c.name)+'</div><div class="cm-hero-sub">'+esc(c.country)+' \u00b7 '+esc(c.region)+'</div><div class="cm-hero-score" style="color:'+sc+'">'+c.score+'</div><div class="cm-hero-score-label">Overall Score / 10</div>';
 body.innerHTML='<div style="color:#333;padding:20px 0;font-size:12px;text-align:center">Loading...</div>';
-var revP=sb.from("city_reviews").select("*").eq("city_id",cityId).order("created_at",{ascending:false}).limit(20),tipP=sb.from("city_tips").select("*").eq("city_id",cityId).order("likes",{ascending:false}).limit(15),results=await Promise.all([revP,tipP]),reviews=results[0].data||[],tips=results[1].data||[],avgR=reviews.length?(reviews.reduce(function(s,r){return s+r.rating;},0)/reviews.length).toFixed(1):null;
+var revP=sb.from("city_reviews").select("*").eq("city_id",cityId).order("created_at",{ascending:false}).limit(20),tipP=sb.from("city_tips").select("*").eq("city_id",cityId).order("likes",{ascending:false}).limit(15),nomadsP=sb.from("nomad_profiles").select("username").eq("current_city",cityId),results=await Promise.all([revP,tipP,nomadsP]),reviews=results[0].data||[],tips=results[1].data||[],cityNomads=results[2].data||[],avgR=reviews.length?(reviews.reduce(function(s,r){return s+r.rating;},0)/reviews.length).toFixed(1):null;
 function stat(icon,val,label,pct,color){return'<div class="cm-stat"><div class="cm-stat-top"><span class="cm-stat-icon">'+icon+'</span><span class="cm-stat-label">'+label+'</span></div><div class="cm-stat-val" style="color:'+color+'">'+val+'</div><div class="cm-bar"><div class="cm-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div></div>';}
 // Build compare button state
 var inCmp=compareList.indexOf(c.id)!==-1;
 var h='';
+// Nomads Here
+var nhCount=cityNomads.length;
+h+='<div class="nomads-here">';
+if(nhCount===0){h+='<div class="nomads-here-count">&#128101; Nomads Here</div><div class="nomads-here-empty">Be the first to base here!</div>';}
+else{var nhNames=cityNomads.slice(0,5).map(function(n){return esc(n.username||'Nomad');}).join(', ');if(nhCount>5)nhNames+=', +'+(nhCount-5)+' more';h+='<div class="nomads-here-count">&#128101; '+nhCount+' Nomad'+(nhCount===1?'':'s')+' Here Now</div><div class="nomads-here-names">'+nhNames+'</div>';}
+h+='</div>';
 // Compare button
 h+='<button class="cm-compare-btn'+(inCmp?' in-compare':'')+'" id="cmpAddBtn">'+(inCmp?'✓ In Comparison':'+ Compare This City')+'</button>';
 // Main stats grid (3-col)
@@ -940,6 +982,170 @@ document.getElementById("cm-body").addEventListener("click",function(e){
     }
   }
 });
+
+
+// ═══════════════════════════════════════
+// PROFILE & TRIPS (Sprint 2)
+// ═══════════════════════════════════════
+
+async function loadNomadProfiles(){
+  try{
+    var r=await sb.from("nomad_profiles").select("current_city,username").not("current_city","is",null);
+    nomadsByCity={};
+    if(r.data){
+      r.data.forEach(function(row){
+        if(!row.current_city)return;
+        var cid=row.current_city;
+        if(!nomadsByCity[cid])nomadsByCity[cid]={count:0,usernames:[]};
+        nomadsByCity[cid].count++;
+        if(row.username)nomadsByCity[cid].usernames.push(row.username);
+      });
+    }
+    renderMarkers();
+    renderList();
+  }catch(e){}
+}
+
+function avatarColor(str){var colors=["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6","#1abc9c","#e67e22","#e91e63"];var h=0;var s=str||"?";for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return colors[h%colors.length];}
+function avatarInitials(username,email){var u=username||(email?email.split("@")[0]:"?");return(u[0]||"?").toUpperCase();}
+
+async function openProfilePanel(){
+  var pc=document.getElementById("profile-content");
+  if(!sbUser){
+    pc.innerHTML='<div class="profile-not-logged"><p>Sign in to create your nomad profile</p><button onclick="showAuth()">Sign In / Join Free</button></div>';
+    return;
+  }
+  pc.innerHTML='<div style="color:#333;font-size:12px;padding:16px;text-align:center">Loading...</div>';
+  try{
+    var profRes=await sb.from("nomad_profiles").select("*").eq("user_id",sbUser.id).maybeSingle();
+    var tripsRes=await sb.from("trips").select("*").eq("user_id",sbUser.id).order("start_date",{ascending:false});
+    renderProfilePanel(profRes.data||{},tripsRes.data||[]);
+  }catch(e){document.getElementById("profile-content").innerHTML='<div style="color:#555;font-size:12px;padding:16px;text-align:center">Error loading profile.</div>';}
+}
+
+function renderProfilePanel(prof,trips){
+  var pc=document.getElementById("profile-content");
+  var ini=avatarInitials(prof.username,sbUser.email);
+  var col=avatarColor(prof.username||sbUser.email||"x");
+  var cityOpts='<option value="">--- None ---</option>'+CITIES.map(function(c){return'<option value="'+c.id+'"'+(prof.current_city===c.id?' selected':'')+'>'+c.flag+' '+esc(c.name)+'</option>';}).join('');
+  var tripOpts='<option value="">Select city...</option>'+CITIES.map(function(c){return'<option value="'+c.id+'">'+c.flag+' '+esc(c.name)+'</option>';}).join('');
+  var h='';
+  h+='<div class="profile-header"><div class="profile-avatar-circle" id="profAvatar" style="background:'+col+'">'+ini+'</div>';
+  h+='<div><div style="font-size:13px;font-weight:700;color:#ccc">'+esc(prof.username||sbUser.email.split('@')[0])+'</div>';
+  h+='<div style="font-size:10px;color:#444">'+esc(sbUser.email)+'</div></div></div>';
+  h+='<div class="profile-form">';
+  h+='<div class="profile-field"><label>Username</label><input type="text" id="pf-username" value="'+esc(prof.username||'')+'" placeholder="your_name" maxlength="30"></div>';
+  h+='<div class="profile-field"><label>Bio <span id="bio-count" style="font-weight:400;color:#333">('+((prof.bio||'').length)+'/160)</span></label>';
+  h+='<textarea id="pf-bio" maxlength="160" placeholder="Remote worker. World explorer...">'+esc(prof.bio||'')+'</textarea></div>';
+  h+='<div class="profile-field"><label>Home Country</label><input type="text" id="pf-country" value="'+esc(prof.home_country||'')+'" placeholder="USA, Germany..."></div>';
+  h+='<div class="profile-field"><label>Currently In</label><select id="pf-city">'+cityOpts+'</select></div>';
+  h+='<div class="profile-field"><label>Remote Work Type</label><select id="pf-work"><option value="">Select...</option>';
+  h+='<option value="Freelancer"'+(prof.remote_work==='Freelancer'?' selected':'')+'>Freelancer</option>';
+  h+='<option value="Remote Employee"'+(prof.remote_work==='Remote Employee'?' selected':'')+'>Remote Employee</option>';
+  h+='<option value="Founder"'+(prof.remote_work==='Founder'?' selected':'')+'>Founder</option>';
+  h+='<option value="Other"'+(prof.remote_work==='Other'?' selected':'')+'>Other</option>';
+  h+='</select></div>';
+  h+='<button class="profile-save-btn" id="profileSaveBtn">Save Profile</button></div>';
+  h+='<div style="padding:0 16px 20px">';
+  h+='<div class="section-title" style="margin-top:16px">&#9992;&#65039; Trips Log</div>';
+  h+='<div id="trips-list"></div>';
+  h+='<div class="add-trip-form"><div class="section-title" style="margin:0 0 4px">+ Log a Trip</div>';
+  h+='<select id="trip-city">'+tripOpts+'</select>';
+  h+='<input type="date" id="trip-start">';
+  h+='<input type="date" id="trip-end">';
+  h+='<textarea id="trip-notes" placeholder="What was it like?"></textarea>';
+  h+='<button class="form-submit" id="logTripBtn" style="margin-top:8px">Log Trip</button>';
+  h+='</div></div>';
+  pc.innerHTML=h;
+  renderTrips(trips);
+  document.getElementById("profileSaveBtn").addEventListener("click",saveProfile);
+  document.getElementById("logTripBtn").addEventListener("click",addTrip);
+  var bioField=document.getElementById("pf-bio");
+  if(bioField)bioField.addEventListener("input",function(){var bc=document.getElementById("bio-count");if(bc)bc.textContent="("+this.value.length+"/160)";});
+}
+
+function renderTrips(trips){
+  var el=document.getElementById("trips-list");
+  if(!el)return;
+  if(!trips||trips.length===0){el.innerHTML='<div style="color:#333;font-size:12px;padding:8px 0">No trips logged yet.</div>';return;}
+  var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function fmtD(d){if(!d)return null;var p=d.split("-");return mn[parseInt(p[1])-1]+" "+p[0];}
+  function dur(s,e){if(!s)return"";if(!e)return"Ongoing";var ms=new Date(e)-new Date(s);return Math.round(ms/86400000)+" days";}
+  el.innerHTML=trips.map(function(t){
+    var city=CITIES.find(function(c){return c.id===t.city_id;})||{};
+    var dateStr=(t.start_date?fmtD(t.start_date):"?")+" \u2013 "+(t.end_date?fmtD(t.end_date):"Present");
+    return'<div class="trip-item"><div style="font-size:20px;flex-shrink:0">'+(city.flag||"&#127758;")+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="trip-city">'+esc(t.city_name||city.name||t.city_id)+'</div>'+
+      '<div class="trip-meta">'+dateStr+' &middot; '+dur(t.start_date,t.end_date)+'</div>'+
+      (t.notes?'<div style="font-size:11px;color:#333;margin-top:2px">'+esc(t.notes)+'</div>':'')+
+      '</div><button class="trip-delete" data-tripid="'+t.id+'">&times;</button></div>';
+  }).join('');
+  el.querySelectorAll(".trip-delete").forEach(function(btn){
+    btn.addEventListener("click",function(e){e.stopPropagation();deleteTrip(btn.dataset.tripid);});
+  });
+}
+
+async function saveProfile(){
+  var btn=document.getElementById("profileSaveBtn");
+  if(!btn)return;
+  btn.textContent="Saving...";btn.disabled=true;
+  var username=(document.getElementById("pf-username")||{}).value||"";
+  var bio=(document.getElementById("pf-bio")||{}).value||"";
+  var homeCountry=(document.getElementById("pf-country")||{}).value||"";
+  var currentCity=(document.getElementById("pf-city")||{}).value||"";
+  var remoteWork=(document.getElementById("pf-work")||{}).value||"";
+  var res=await sb.from("nomad_profiles").upsert({
+    user_id:sbUser.id,
+    username:username.trim()||null,
+    bio:bio.trim()||null,
+    home_country:homeCountry.trim()||null,
+    current_city:currentCity||null,
+    remote_work:remoteWork||null
+  },{onConflict:"user_id"});
+  btn.textContent="Save Profile";btn.disabled=false;
+  if(res.error){showToast("Error: "+res.error.message);return;}
+  showToast("Profile saved!");
+  var ini=avatarInitials(username.trim(),sbUser.email);
+  var col=avatarColor(username.trim()||sbUser.email||"x");
+  var av=document.getElementById("profAvatar");
+  if(av){av.textContent=ini;av.style.background=col;}
+  loadNomadProfiles();
+}
+
+async function addTrip(){
+  var btn=document.getElementById("logTripBtn");
+  var cityId=(document.getElementById("trip-city")||{}).value||"";
+  var startDate=(document.getElementById("trip-start")||{}).value||"";
+  var endDate=(document.getElementById("trip-end")||{}).value||"";
+  var notes=(document.getElementById("trip-notes")||{}).value||"";
+  if(!cityId){showToast("Select a city");return;}
+  if(!startDate){showToast("Set a start date");return;}
+  var city=CITIES.find(function(c){return c.id===cityId;});
+  btn.textContent="Logging...";btn.disabled=true;
+  var res=await sb.from("trips").insert({
+    user_id:sbUser.id,city_id:cityId,
+    city_name:city?city.name:cityId,
+    start_date:startDate,
+    end_date:endDate||null,
+    notes:notes.trim()||null
+  });
+  btn.textContent="Log Trip";btn.disabled=false;
+  if(res.error){showToast("Error: "+res.error.message);return;}
+  showToast("Trip logged!");
+  document.getElementById("trip-start").value="";
+  document.getElementById("trip-end").value="";
+  document.getElementById("trip-notes").value="";
+  var r=await sb.from("trips").select("*").eq("user_id",sbUser.id).order("start_date",{ascending:false});
+  renderTrips(r.data||[]);
+}
+
+async function deleteTrip(tripId){
+  var res=await sb.from("trips").delete().eq("id",tripId).eq("user_id",sbUser.id);
+  if(res.error){showToast("Error");return;}
+  showToast("Trip removed");
+  var r=await sb.from("trips").select("*").eq("user_id",sbUser.id).order("start_date",{ascending:false});
+  renderTrips(r.data||[]);
+}
 
 renderUserWidget();
 </script>
